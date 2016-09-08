@@ -1,0 +1,11 @@
+(module "mimir"
+  (export
+    `("connect" ,mimir:connect)
+    `("connect-from-config" ,connect-from-config)
+    `("get-tables" ,mimir:get-tables))
+
+  (loads "MimirInternal")
+
+  (connect-from-config (lambda (conf-path)
+    (let ((conf (car (parse conf-path))))
+      (mimir:connect conf)))))
