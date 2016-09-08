@@ -1,11 +1,22 @@
 (module "mimir"
   (export
     `("connect" ,mimir:connect)
+    `("disconnect" ,mimir:disconnect)
     `("connect-from-config" ,connect-from-config)
-    `("get-tables" ,mimir:get-tables))
+    `("get-tables" ,mimir:get-tables)
+    `("execute" ,mimir:execute)
+    `("commit" ,mimir:commit)
+    `("with-connection" ,with-connection))
 
   (loads "MimirInternal")
 
   (connect-from-config (lambda (conf-path)
     (let ((conf (car (parse conf-path))))
-      (mimir:connect conf)))))
+      (mimir:connect conf))))
+
+  (with-connection (lambda (conf f)
+    (let* ((conn (mimir:connect conf))
+           (res (f conn)))
+      (begin
+        (mimir:commit conn)
+        res)))))
