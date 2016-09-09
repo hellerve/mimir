@@ -1,0 +1,5 @@
+(defimpl stringify mimir:connection?
+         ((->string ($
+          (let ((info (mimir:connection-info %)))
+            (++ "<connection driver: " (info :driver)
+                           " server-version: " (info :server-version) ">"))))))
