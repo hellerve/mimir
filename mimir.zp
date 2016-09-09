@@ -6,17 +6,42 @@
     `("get-tables" ,mimir:get-tables)
     `("execute" ,mimir:execute)
     `("commit" ,mimir:commit)
+    `("rollback" ,mimir:rollback)
+    `("connection?" ,mimir:connection?)
+    `("connection-info" ,mimir:connection-info)
     `("with-connection" ,with-connection))
 
-  (loads "MimirInternal")
+  (loads "mimir/internal")
 
   (connect-from-config (lambda (conf-path)
+    "creates a database connection from the configuration in the
+     config file <par>conf-path</par>.
+
+     params:
+      - conf-path: the configuration path
+     complexity: O(n) where n is the complexity of the configuration
+     returns: a database connection object (opaque)"
     (let ((conf (car (parse conf-path))))
       (mimir:connect conf))))
 
   (with-connection (lambda (conf f)
-    (let* ((conn (mimir:connect conf))
+    "executes the function <par>f</par> with a connection as
+     specified in the configuration <par>conf</par>.
+
+     <par>conf</par> can be both a path to a file (string) or
+     a configuration object (hashmap).
+
+     params:
+      - conf: the configuration object (string|hashmap)
+      - f: the function to call
+    complexity: O(n) where n is the complexity of the configuration
+    returns: the result of the function"
+    (let* ((conn (given (hash-map? mimir:connect)
+                        (string? connect-from-config)
+                        (else
+                          (error "connect must be either a hashmap or a string"))))
            (res (f conn)))
       (begin
         (mimir:commit conn)
+        (mimir:disconnect conn)
         res)))))
