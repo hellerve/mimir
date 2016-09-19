@@ -1,5 +1,5 @@
 name:                mimir
-version:             0.1.0.0
+version:             0.1.0
 author:              Veit Heller
 maintainer:          veit@veitheller.de
 description:         Mímir is a deity.
@@ -9,6 +9,11 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     MimirInternal
-  build-depends:       base >=4.9 && <4.10, zepto >=0.9 && <0.10, HDBC-postgresql, HDBC, convertible
+  build-depends:       base >= 4.9 && < 4.10,
+                       containers,
+                       convertible,
+                       HDBC,
+                       HDBC-postgresql,
+                       zepto >= 0.9 && < 0.10
   default-language:    Haskell2010
 

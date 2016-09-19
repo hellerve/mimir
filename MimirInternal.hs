@@ -5,7 +5,7 @@ import Data.Convertible
 import Database.HDBC
 import Database.HDBC.PostgreSQL
 
-import Zepto.Types
+import Zepto.Types.Export
 
 instance Convertible SqlValue LispVal where
   safeConvert (SqlString s) = return $ fromSimple $ String s
@@ -63,7 +63,7 @@ exports = [(namespace "connect", unaryIOOp connectFun, con connectDoc),
            (namespace "connection-info", unaryIOOp connInfoFun, con connInfoDoc)]
 
 parseInfo :: LispVal -> String
-parseInfo (HashMap conninfo) = tail (foldrWithKey build "" conninfo)
+parseInfo (HashMap conninfo) = tail (foldrWithKeyMap build "" conninfo)
     where build (String k) (SimpleVal (String v)) acc = acc ++ ' ' : k ++ '=' : v
           build _ _ acc = acc
 
@@ -90,13 +90,13 @@ disconnectDoc = ["destroys a database connection. Takes a connection <par>conn</
                   "returns: nil"]
 
 disconnectFun :: LispVal -> IOThrowsError LispVal
-disconnectFun conn@(Opaque _) = do
-  case ((fromOpaque conn) :: Maybe (IO Connection)) of
-    Just x -> do
-      x <- liftLisp x
-      y <- liftLisp $ disconnect x
+disconnectFun c@(Opaque _) = do
+  case ((fromOpaque c) :: Maybe (IO Connection)) of
+    Just conn -> do
+      lifted <- liftLisp conn
+      _      <- liftLisp $ disconnect lifted
       return $ fromSimple $ Nil ""
-    Nothing -> lispErr $ TypeMismatch "opaque connection" conn
+    Nothing -> lispErr $ TypeMismatch "opaque connection" c
 disconnectFun x = lispErr $ TypeMismatch "opaque" x
 
 getTablesDoc :: [String]
@@ -109,19 +109,21 @@ getTablesDoc = ["gets a list of table names (strings). Takes a connection",
                 "returns: a list of strings"]
 
 getTablesFun :: LispVal -> IOThrowsError LispVal
-getTablesFun conn@(Opaque _) = do
-  case ((fromOpaque conn) :: Maybe (IO Connection)) of
-    Just x -> do
-      x <- liftLisp x
-      y <- liftLisp $ getTables x
-      return $ List $ map (fromSimple . String) y
-    Nothing -> lispErr $ TypeMismatch "opaque connection" conn
+getTablesFun c@(Opaque _) = do
+  case ((fromOpaque c) :: Maybe (IO Connection)) of
+    Just conn -> do
+      lifted <- liftLisp conn
+      tables <- liftLisp $ getTables lifted
+      return $ List $ map (fromSimple . String) tables
+    Nothing -> lispErr $ TypeMismatch "opaque connection" c
 getTablesFun x = lispErr $ TypeMismatch "opaque" x
 
 executeDoc :: [String]
 executeDoc = ["execute a statement <par>stmt</par> (string). Takes a connection,",
               "a statement and an optional list of values <par>args/par> that should be",
               "interpolated into the statement.",
+              "",
+              "Auto-commits.",
               "",
               "params:",
               "- conn: the connection",
@@ -131,24 +133,26 @@ executeDoc = ["execute a statement <par>stmt</par> (string). Takes a connection,
               "returns: a list of rows"]
 
 executeFun :: [LispVal] -> IOThrowsError LispVal
-executeFun [conn@(Opaque _), (SimpleVal (String stmt))] = do
-  case ((fromOpaque conn) :: Maybe (IO Connection)) of
-    Just x -> do
-      x <- liftLisp x
-      stmt <- liftLisp $ prepare x stmt
-      x <- liftLisp $ executeRaw stmt
-      y <- liftLisp $ fetchAllRows' stmt
-      return $ List $ map convertResultSet y
-    Nothing -> lispErr $ TypeMismatch "opaque connection" conn
-executeFun [conn@(Opaque _), (SimpleVal (String stmt)), List args] = do
-  case ((fromOpaque conn) :: Maybe (IO Connection)) of
-    Just x -> do
-      x <- liftLisp x
-      stmt <- liftLisp $ prepare x stmt
-      x <- liftLisp $ execute stmt $ convertZeptoList args
-      y <- liftLisp $ fetchAllRows' stmt
-      return $ List $ (fromSimple $ Number $ NumI x) : map convertResultSet y
-    Nothing -> lispErr $ TypeMismatch "opaque connection" conn
+executeFun [c@(Opaque _), (SimpleVal (String s))] = do
+  case ((fromOpaque c) :: Maybe (IO Connection)) of
+    Just conn -> do
+      lifted <- liftLisp conn
+      stmt   <- liftLisp $ prepare lifted s
+      exec   <- liftLisp $ executeRaw stmt
+      _      <- liftLisp $ commit lifted
+      res    <- liftLisp $ fetchAllRows' stmt
+      return $ List $ map convertResultSet res
+    Nothing -> lispErr $ TypeMismatch "opaque connection" c
+executeFun [c@(Opaque _), (SimpleVal (String s)), List args] = do
+  case ((fromOpaque c) :: Maybe (IO Connection)) of
+    Just conn -> do
+      lifted <- liftLisp conn
+      stmt   <- liftLisp $ prepare lifted s
+      exec   <- liftLisp $ execute stmt $ convertZeptoList args
+      _      <- liftLisp $ commit lifted
+      res    <- liftLisp $ fetchAllRows' stmt
+      return $ List $ map convertResultSet res
+    Nothing -> lispErr $ TypeMismatch "opaque connection" c
 executeFun [x, (SimpleVal (String _))] =
   lispErr $ TypeMismatch "opaque" x
 executeFun [_, x] =
@@ -172,13 +176,13 @@ commitDoc = ["commits all pending transactions to the DB to ensure writes.",
              "returns: nil"]
 
 commitFun :: LispVal -> IOThrowsError LispVal
-commitFun conn@(Opaque _) =
-  case ((fromOpaque conn) :: Maybe (IO Connection)) of
-    Just x -> do
-      x <- liftLisp x
-      x <- liftLisp $ commit x
+commitFun c@(Opaque _) =
+  case ((fromOpaque c) :: Maybe (IO Connection)) of
+    Just conn -> do
+      lifted <- liftLisp conn
+      _      <- liftLisp $ commit lifted
       return $ fromSimple $ Nil ""
-    Nothing -> lispErr $ TypeMismatch "opaque connection" conn
+    Nothing -> lispErr $ TypeMismatch "opaque connection" c
 commitFun x = lispErr $ TypeMismatch "opaque" x
 
 rollbackDoc :: [String]
@@ -190,13 +194,13 @@ rollbackDoc = ["rollbacks all pending transactions to the DB to ensure failure r
              "returns: nil"]
 
 rollbackFun :: LispVal -> IOThrowsError LispVal
-rollbackFun conn@(Opaque _) =
-  case ((fromOpaque conn) :: Maybe (IO Connection)) of
-    Just x -> do
-      x <- liftLisp x
-      x <- liftLisp $ rollback x
+rollbackFun c@(Opaque _) =
+  case ((fromOpaque c) :: Maybe (IO Connection)) of
+    Just conn -> do
+      lifted <- liftLisp conn
+      _      <- liftLisp $ rollback lifted
       return $ fromSimple $ Nil ""
-    Nothing -> lispErr $ TypeMismatch "opaque connection" conn
+    Nothing -> lispErr $ TypeMismatch "opaque connection" c
 rollbackFun x = lispErr $ TypeMismatch "opaque" x
 
 connDoc :: [String]
@@ -223,14 +227,14 @@ connInfoDoc = ["gets the connection information for <par>args</par> as a hashmap
                "returns: a hashmap with the fields :driver, :client-version, :server-version, and :transaction-support"]
 
 connInfoFun :: LispVal -> IOThrowsError LispVal
-connInfoFun conn@(Opaque _) =
-  case ((fromOpaque conn) :: Maybe (IO Connection)) of
-    Just x -> do
-      x <- liftLisp x
-      return $ HashMap $ fromList
-        [(Atom ":driver", fromSimple $ String $ hdbcDriverName x),
-         (Atom ":client-version", fromSimple $ String $ hdbcClientVer x),
-         (Atom ":transaction-support", fromSimple $ Bool $ dbTransactionSupport x),
-         (Atom ":server-version", fromSimple $ String $ dbServerVer x)]
-    Nothing -> lispErr $ TypeMismatch "opaque connection" conn
+connInfoFun c@(Opaque _) =
+  case ((fromOpaque c) :: Maybe (IO Connection)) of
+    Just conn -> do
+      lifted <- liftLisp conn
+      return $ HashMap $ fromListMap
+        [(Atom ":driver", fromSimple $ String $ hdbcDriverName lifted),
+         (Atom ":client-version", fromSimple $ String $ hdbcClientVer lifted),
+         (Atom ":transaction-support", fromSimple $ Bool $ dbTransactionSupport lifted),
+         (Atom ":server-version", fromSimple $ String $ dbServerVer lifted)]
+    Nothing -> lispErr $ TypeMismatch "opaque connection" c
 connInfoFun x = lispErr $ TypeMismatch "opaque" x
