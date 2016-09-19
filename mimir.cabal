@@ -9,11 +9,13 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     MimirInternal
-  build-depends:       base >= 4.9 && < 4.10,
+  build-depends:       base > 4.9 && < 4.10,
                        containers,
                        convertible,
                        HDBC,
+                       --HDBC-mysql,
                        HDBC-postgresql,
+                       HDBC-sqlite3,
                        zepto >= 0.9 && < 0.10
   default-language:    Haskell2010
 
