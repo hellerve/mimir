@@ -91,6 +91,7 @@ exports :: [(String, [LispVal] -> IOThrowsError LispVal, String)]
 exports = [(namespace "connect", unaryIOOp connectFun, con connectDoc),
            (namespace "disconnect", unaryIOOp disconnectFun, con disconnectDoc),
            (namespace "get-tables", unaryIOOp getTablesFun, con getTablesDoc),
+           (namespace "describe-table", describeTableFun, con describeTableDoc),
            (namespace "execute", executeFun, con executeDoc),
            (namespace "commit", unaryIOOp commitFun, con commitDoc),
            (namespace "rollback", unaryIOOp rollbackFun, con rollbackDoc),
@@ -181,6 +182,41 @@ getTablesFun c@(Opaque _) = do
     Nothing -> lispErr $ TypeMismatch "opaque connection" c
 getTablesFun x = lispErr $ TypeMismatch "opaque" x
 
+describeTableDoc :: [String]
+describeTableDoc = ["describes a table by name. Takes a connection",
+                "conn and the table name.",
+                "",
+                "params:",
+                "- args: the connection object and the table name",
+                "complexity: O(n)",
+                "returns: a hashmap that maps column names to their description"]
+
+describeTableFun :: [LispVal] -> IOThrowsError LispVal
+describeTableFun [c@(Opaque _), SimpleVal (String name)] =
+  case ((fromOpaque c) :: Maybe MimirConn) of
+    Just conn -> do
+      res <- liftLisp $ describeTable conn name
+      return $ treatValues res
+    Nothing -> lispErr $ TypeMismatch "opaque connection" c
+  where treatValues l = HashMap $ fromListMap $ map treatValue l
+        treatValue (key, descr) = (String key, treatDescr descr)
+        treatDescr (SqlColDesc id size length digits null) =
+          HashMap $ fromListMap
+            [(Atom ":id", fromSimple $ String $ drop 3 $ init $ show id),
+             (Atom ":size", treatInt size),
+             (Atom ":octet-length", treatInt length),
+             (Atom ":decimal-digits", treatInt digits),
+             (Atom ":nullable", treatBool null)]
+        treatInt  = fromSimple . Number . NumS . fromMaybe 0
+        treatBool = fromSimple . Bool . fromMaybe False
+        fromMaybe dflt maybe = case maybe of
+          Just val -> val
+          Nothing -> dflt
+describeTableFun [x, (SimpleVal (String _))] =
+  lispErr $ TypeMismatch "opaque" x
+describeTableFun [_, x] =
+  lispErr $ TypeMismatch "string" x
+
 executeDoc :: [String]
 executeDoc = ["execute a statement <par>stmt</par> (string). Takes a connection,",
               "a statement and an optional list of values <par>args/par> that should be",
@@ -196,16 +232,9 @@ executeDoc = ["execute a statement <par>stmt</par> (string). Takes a connection,
               "returns: a list of rows"]
 
 executeFun :: [LispVal] -> IOThrowsError LispVal
-executeFun [c@(Opaque _), (SimpleVal (String s))] = do
-  case ((fromOpaque c) :: Maybe MimirConn) of
-    Just conn -> do
-      stmt   <- liftLisp $ prepare conn s
-      exec   <- liftLisp $ executeRaw stmt
-      _      <- liftLisp $ commit conn
-      res    <- liftLisp $ fetchAllRows' stmt
-      return $ List $ map convertResultSet res
-    Nothing -> lispErr $ TypeMismatch "opaque connection" c
-executeFun [c@(Opaque _), (SimpleVal (String s)), List args] = do
+executeFun [c@(Opaque _), s@(SimpleVal (String _))] =
+  executeFun [c, s, List []]
+executeFun [c@(Opaque _), (SimpleVal (String s)), List args] =
   case ((fromOpaque c) :: Maybe MimirConn) of
     Just conn -> do
       stmt   <- liftLisp $ prepare conn s
