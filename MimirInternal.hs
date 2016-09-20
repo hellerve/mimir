@@ -4,12 +4,14 @@ module MimirInternal where
 import Data.Convertible
 import Database.HDBC
 import Database.HDBC.PostgreSQL
+import qualified Database.HDBC.MySQL as MyS
 import qualified Database.HDBC.Sqlite3 as Lite
 
 import Zepto.Types.Export
 
 data MimirConn = Post Connection
                | SLite Lite.Connection
+               | Mysql MyS.Connection
 instance IConnection MimirConn where
   disconnect (Post  c) = disconnect c
   disconnect (SLite c) = disconnect c
@@ -116,17 +118,25 @@ connectPost info = do
         build (String k) (SimpleVal (String v)) acc = acc ++ ' ' : k ++ '=' : v
         build _ _ acc = acc
 
-{-connectMysql c = return $ toOpaque $ connectMySQL $ parseInfo
-  where parseInfo = MySQLConnectInfo (f "host" "127.0.0.1")
-                                     (f "user" "zepto")
-                                     (f "password" "")
-                                     (f "dbname" "zepto")
-                                     (f "port" 3306)
-                                     (f "group" Nothing)
-        f k d     = convert $ findWithDefault k d c
-        convert (SimpleVal (String x)) = x
-        convert (SimpleVal (Number (NumI x))) = x
-        convert _ = error "Invalid type in connection info"-}
+connectMysql c = return $ toOpaque $ MyS.connectMySQL $ parseInfo
+  where parseInfo = MyS.defaultMySQLConnectInfo {
+                          MyS.mysqlHost = getHost,
+                          MyS.mysqlUser = getUser,
+                          MyS.mysqlPassword = getPwd,
+                          MyS.mysqlDatabase = getDb,
+                          MyS.mysqlPort = getPort}
+        getStr k d = case lookupMap (String k) c of
+          Just (SimpleVal (String val)) -> val
+          Nothing -> d
+        getHost = getStr "host" "127.0.0.1"
+        getUser = getStr "user" "zepto"
+        getPwd = getStr "password" ""
+        getDb = getStr "dbname" "zepto"
+        getPort = case lookupMap (String "port") c of
+          Just (SimpleVal (Number (NumI x))) -> fromInteger x
+          Just (SimpleVal (Number (NumS x))) -> x
+          Nothing -> 3309
+
 
 connectSqlite3 info = do
     conn <- liftLisp $ Lite.connectSqlite3 $ parseInfo info
@@ -140,7 +150,7 @@ connectFun (HashMap conninfo) =
       Just value ->
         let info = deleteMap (String "driver") conninfo
         in case value of
-          --SimpleVal (String "mysql") -> connectMysql info
+          SimpleVal (String "mysql") -> connectMysql info
           SimpleVal (String "postgresql") -> connectPost info
           SimpleVal (String "sqlite3") -> connectSqlite3 info
           val -> lispErr $ Default $ "Unknown driver/invalid value: " ++ show val

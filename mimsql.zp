@@ -1,0 +1,50 @@
+(module "mimsql"
+  (export
+    `("select" ,select)
+    `("where"  ,where)
+    `("limit"  ,limit)
+    `("order"  ,order)
+    `("offset" ,offset)
+    `("having" ,having)
+    `("sub"    ,sub))
+
+  (make-sub ($ `(sub ,%)))
+
+  (stringify (lambda (v) (if (string? v) (++ "\"" v "\"") (->string v))))
+
+  (treat (lambda (value)
+    (cond
+      ((and (list? value) (eq? (get-from value 0) 'sub)) (cadr value))
+      ((list? value) (reduce (lambda (acc v) (++ acc " " (stringify v))) "" value))
+      (else (++ "=" (stringify value))))))
+
+
+  (select (lambda (names from . clauses)
+    (let ((joined (if (string? names) names (string:join names ", "))))
+      (++ "SELECT " joined " FROM " from "\n\t" (string:join clauses "\n\t")))))
+
+  (where (lambda constraints
+    (let ((treated (|> constraints
+                       make-hash
+                       (curry hash:kv-map ($ `(,(car %) ,(treat (cadr %)))))
+                       (curry map string:join))))
+      (++ "WHERE " (string:join treated "\n\t  AND ")))))
+
+  (limit (lambda (n)
+    (++ "LIMIT " (->string n))))
+
+  (offset (lambda (n)
+    (++ "OFFSET " (->string n))))
+
+  (order (lambda (name . method)
+    (++ "ORDER BY " name (if (null? method) "" (++ " " (car method))))))
+
+  (having (lambda constraints
+    (let ((treated (|> constraints
+                       (curry partition-all 4)
+                       (curry map ($ (++ (car %) "(" (cadr %) ")"
+                                         (treat (cddr %))))))))
+      (++ "HAVING " (string:join treated "\n\t   AND ")))))
+
+  (sub (lambda (operator query)
+    (make-sub (++ " " operator " (" query ")")))))

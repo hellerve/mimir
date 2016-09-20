@@ -1,5 +1,5 @@
 name:                mimir
-version:             0.1.0
+version:             0.0.2
 author:              Veit Heller
 maintainer:          veit@veitheller.de
 description:         Mímir is a deity.
@@ -13,7 +13,7 @@ library
                        containers,
                        convertible,
                        HDBC,
-                       --HDBC-mysql,
+                       HDBC-mysql >= 0.7.0.0,
                        HDBC-postgresql,
                        HDBC-sqlite3,
                        zepto >= 0.9 && < 0.10
