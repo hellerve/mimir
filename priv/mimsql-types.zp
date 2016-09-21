@@ -5,6 +5,12 @@
   (fields mimsql:entity-fields)
   (relations mimsql:entity-relations))
 
+(define-record-type mimsql:save
+  (mimsql:make-save entity values)
+  mimsql:save?
+  (entity mimsql:save-entity)
+  (values mimsql:save-values))
+
 (define-record-type mimsql:fields
   (mimsql:make-fields fields)
   mimsql:fields?

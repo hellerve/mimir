@@ -30,6 +30,13 @@
                  (string:join (map ->string (mimsql:get-select-clauses %))
                  "\n\t"))))))
 
+(defimpl stringify mimsql:save?
+         ((->string
+          ($ (let ((kvs (hash:kv-reduce += [] (mimsql:save-values %))))
+              (++ "INSERT INTO " (mimsql:entity-name (mimsql:save-entity %))
+                  " (" (string:join (map car kvs) ", ") ") VALUES ("
+                  (string:join (map cadr kvs) ", ") ")"))))))
+
 (defimpl stringify mimsql:join?
          ((->string
           ($ (++ "JOIN " (mimsql:get-join-table %)
