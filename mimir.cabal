@@ -18,4 +18,4 @@ library
                        HDBC-sqlite3,
                        zepto >= 0.9 && < 0.10
   default-language:    Haskell2010
-
+  Hs-Source-Dirs:      priv

@@ -5,6 +5,7 @@
     `("connect-from-config" ,connect-from-config)
     `("get-tables" ,mimir:get-tables)
     `("execute" ,mimir:execute)
+    `("execute-mimsql" ,execute-mimsql)
     `("commit" ,mimir:commit)
     `("rollback" ,mimir:rollback)
     `("connection?" ,mimir:connection?)
@@ -12,6 +13,18 @@
     `("with-connection" ,with-connection))
 
   (loads "mimir/internal")
+
+  (execute-mimsql (lambda (conn query . values)
+    "executes a query built with mimsql. Otherwise functionally equivalent
+     to <fun>mimsql:execute</fun>.
+
+     params:
+      - conn: the connection
+      - query: the mimsql query to run
+      - options: optional argument: the values that should be interpolated
+     complexity: same as <fun>mimsql:execute</fun>
+     returns: the result set"
+    (mimsql:execute conn (->string query) (if (null? options) [] (car options)))))
 
   (connect-from-config (lambda (conf-path)
     "creates a database connection from the configuration in the

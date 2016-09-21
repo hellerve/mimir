@@ -1,50 +1,69 @@
 (module "mimsql"
   (export
-    `("select" ,select)
-    `("where"  ,where)
-    `("limit"  ,limit)
-    `("order"  ,order)
-    `("offset" ,offset)
-    `("having" ,having)
-    `("sub"    ,sub))
+    `("select"  ,select)
+    `("where"   ,where)
+    `("limit"   ,limit)
+    `("order"   ,order)
+    `("offset"  ,offset)
+    `("having"  ,having)
+    `("sub"     ,sub)
+    `("select?" ,mimsql:select?)
+    `("where?"  ,mimsql:where?)
+    `("limit?"  ,mimsql:limit?)
+    `("order?"  ,mimsql:order?)
+    `("offset?" ,mimsql:offset?)
+    `("having?" ,mimsql:having?)
+    `("sub?"    ,mimsql:sub?))
 
-  (make-sub ($ `(sub ,%)))
+  (loads "mimir/priv/mimsql-internal")
 
-  (stringify (lambda (v) (if (string? v) (++ "\"" v "\"") (->string v))))
+  (deatomize (compose cdr ->string))
+
+  (stringify (lambda (v)
+    (given v
+      (string? ($ (++ "\"" % "\"")))
+      (atom? deatomize)
+      (else ->string))))
 
   (treat (lambda (value)
-    (cond
-      ((and (list? value) (eq? (get-from value 0) 'sub)) (cadr value))
-      ((list? value) (reduce (lambda (acc v) (++ acc " " (stringify v))) "" value))
-      (else (++ "=" (stringify value))))))
+    (given value
+      (mimsql:sub? cadr)
+      (list? (curry reduce (lambda (acc v) (++ acc " " (stringify v))) " "))
+      (else ($ (++ "=" (stringify %)))))))
 
 
   (select (lambda (names from . clauses)
-    (let ((joined (if (string? names) names (string:join names ", "))))
-      (++ "SELECT " joined " FROM " from "\n\t" (string:join clauses "\n\t")))))
+    (let ((names (if (list? names) names (list names))))
+      (mimsql:make-select (map stringify names) (stringify from) clauses))))
 
   (where (lambda constraints
     (let ((treated (|> constraints
                        make-hash
-                       (curry hash:kv-map ($ `(,(car %) ,(treat (cadr %)))))
+                       (curry hash:kv-map ($ `(,(stringify (car %))
+                                               ,(treat (cadr %)))))
                        (curry map string:join))))
-      (++ "WHERE " (string:join treated "\n\t  AND ")))))
+      (mimsql:make-where treated))))
 
   (limit (lambda (n)
-    (++ "LIMIT " (->string n))))
+    (mimsql:make-limit n)))
 
   (offset (lambda (n)
-    (++ "OFFSET " (->string n))))
+    (mimsql:make-offset n)))
 
   (order (lambda (name . method)
-    (++ "ORDER BY " name (if (null? method) "" (++ " " (car method))))))
+    (mimsql:make-order (stringify name)
+                        (if (null? method)
+                          ""
+                          (++ " "
+                              (|> method car stringify string:uppercase))))))
 
   (having (lambda constraints
     (let ((treated (|> constraints
                        (curry partition-all 4)
-                       (curry map ($ (++ (car %) "(" (cadr %) ")"
+                       (curry map ($ (++ (stringify (car %))
+                                         "(" (stringify (cadr %)) ")"
                                          (treat (cddr %))))))))
-      (++ "HAVING " (string:join treated "\n\t   AND ")))))
+      (mimsql:make-having treated))))
 
   (sub (lambda (operator query)
-    (make-sub (++ " " operator " (" query ")")))))
+    (mimsql:make-sub (stringify operator) query))))

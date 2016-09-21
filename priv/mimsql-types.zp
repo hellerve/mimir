@@ -1,0 +1,38 @@
+(define-record-type mimsql:select
+  (mimsql:make-select names from clauses)
+  mimsql:select?
+  (names mimsql:get-select-names)
+  (from mimsql:get-from)
+  (clauses mimsql:get-select-clauses))
+
+(define-record-type mimsql:where
+  (mimsql:make-where constraints)
+  mimsql:where?
+  (constraints mimsql:get-where-constraints))
+
+(define-record-type mimsql:limit
+  (mimsql:make-limit limit)
+  mimsql:limit?
+  (limit mimsql:get-limit))
+
+(define-record-type mimsql:offset
+  (mimsql:make-offset offset)
+  mimsql:offset?
+  (offset mimsql:get-offset))
+
+(define-record-type mimsql:order
+  (mimsql:make-order name method)
+  mimsql:order?
+  (name mimsql:get-order-name)
+  (method mimsql:get-order-method))
+
+(define-record-type mimsql:having
+  (mimsql:make-having constraints)
+  mimsql:having?
+  (constraints mimsql:get-having-constraints))
+
+(define-record-type mimsql:sub
+  (mimsql:make-sub operator query)
+  mimsql:sub?
+  (operator mimsql:get-operator)
+  (query mimsql:get-query))

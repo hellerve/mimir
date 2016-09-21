@@ -1,0 +1,34 @@
+(defimpl stringify mimsql:select?
+         ((->string
+          ($ (++ "SELECT " (string:join (mimsql:get-select-names %) ", ")
+                 " FROM " (mimsql:get-from %) "\n\t"
+                 (string:join (map ->string (mimsql:get-select-clauses %))
+                 "\n\t"))))))
+
+(defimpl stringify mimsql:where?
+         ((->string
+          ($ (++ "WHERE "
+                 (string:join (mimsql:get-where-constraints %) "\n\t AND "))))))
+
+(defimpl stringify mimsql:limit?
+         ((->string
+          ($ (++ "LIMIT " (->string (mimsql:get-limit %)))))))
+
+(defimpl stringify mimsql:offset?
+         ((->string
+          ($ (++ "OFFSET " (->string (mimsql:get-offset %)))))))
+
+(defimpl stringify mimsql:order?
+         ((->string
+          ($ (++ "ORDER BY " (mimsql:get-order-name %)
+                             (mimsql:get-order-method %))))))
+
+(defimpl stringify mimsql:having?
+         ((->string
+          ($ (++ "HAVING "
+                 (string:join (mimsql:get-having-constraints %) "\n\t AND "))))))
+
+(defimpl stringify mimsql:sub?
+         ((->string
+          ($ (++ " " (mimsql:get-operator %)
+                 " (" (->string (mimsql:get-query %)) ")")))))
