@@ -1,9 +1,33 @@
+(define-record-type mimsql:entity
+  (mimsql:make-entity name fields relations)
+  mimsql:entity?
+  (name mimsql:entity-name)
+  (fields mimsql:entity-fields)
+  (relations mimsql:entity-relations))
+
+(define-record-type mimsql:fields
+  (mimsql:make-fields fields)
+  mimsql:fields?
+  (fields mimsql:get-fields))
+
+(define-record-type mimsql:relation
+  (mimsql:make-relation type entity)
+  mimsql:relation?
+  (type mimsql:relation-type)
+  (entity mimsql:relation-entity))
+
 (define-record-type mimsql:select
   (mimsql:make-select names from clauses)
   mimsql:select?
   (names mimsql:get-select-names)
   (from mimsql:get-from)
   (clauses mimsql:get-select-clauses))
+
+(define-record-type mimsql:join
+  (mimsql:make-join table mapping)
+  mimsql:join?
+  (table mimsql:get-join-table)
+  (mapping mimsql:get-join-mapping))
 
 (define-record-type mimsql:where
   (mimsql:make-where constraints)

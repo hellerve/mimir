@@ -1,9 +1,45 @@
+(defimpl stringify mimsql:entity?
+         ((->string
+          ($ (++ "<entity " (mimsql:entity-name %) " "
+                 (->string (mimsql:entity-fields %)) " "
+                 (string:join (map ->string (mimsql:entity-relations %)) " ")
+                 ">")))))
+
+(defimpl stringify mimsql:fields?
+         ((->string
+          ($ (++ "<fields: "
+                 (string:join (map ->string (mimsql:get-fields %)) ", ")
+                 ">")))))
+
+(define (relation->string rel)
+  (case rel
+    ((:belongs) "belongs to")
+    ((:one)     "has one")
+    ((:many)    "has many")
+    (else       "invalid")))
+
+(defimpl stringify mimsql:relation?
+         ((->string
+          ($ (++ "<relation: " (relation->string (mimsql:relation-type %)) " "
+                 (mimsql:entity-name (mimsql:relation-entity %)) ">")))))
+
 (defimpl stringify mimsql:select?
          ((->string
           ($ (++ "SELECT " (string:join (mimsql:get-select-names %) ", ")
                  " FROM " (mimsql:get-from %) "\n\t"
                  (string:join (map ->string (mimsql:get-select-clauses %))
                  "\n\t"))))))
+
+(defimpl stringify mimsql:join?
+         ((->string
+          ($ (++ "JOIN " (mimsql:get-join-table %)
+                 "\n  ON " (given (mimsql:get-join-mapping %)
+                            (list? (lambda (x)
+                                    (++ (mimsql:get-join-table %) "."
+                                         (string:join (map ->string x) ""))))
+                            (else  (lambda (x)
+                                    (++ (mimsql:get-join-table %) "."
+                                        (->string x) "=" (->string x))))))))))
 
 (defimpl stringify mimsql:where?
          ((->string

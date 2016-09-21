@@ -1,19 +1,26 @@
 (module "mimsql"
   (export
-    `("select"  ,select)
-    `("where"   ,where)
-    `("limit"   ,limit)
-    `("order"   ,order)
-    `("offset"  ,offset)
-    `("having"  ,having)
-    `("sub"     ,sub)
-    `("select?" ,mimsql:select?)
-    `("where?"  ,mimsql:where?)
-    `("limit?"  ,mimsql:limit?)
-    `("order?"  ,mimsql:order?)
-    `("offset?" ,mimsql:offset?)
-    `("having?" ,mimsql:having?)
-    `("sub?"    ,mimsql:sub?))
+    `("entity"     ,entity)
+    `("fields"     ,fields)
+    `("has-one"    ,has-one)
+    `("has-many"   ,has-many)
+    `("belongs-to" ,belongs-to)
+    `("select"     ,select)
+    `("with"       ,with)
+    `("join"       ,join)
+    `("where"      ,where)
+    `("limit"      ,limit)
+    `("order"      ,order)
+    `("offset"     ,offset)
+    `("having"     ,having)
+    `("sub"        ,sub)
+    `("select?"    ,mimsql:select?)
+    `("where?"     ,mimsql:where?)
+    `("limit?"     ,mimsql:limit?)
+    `("order?"     ,mimsql:order?)
+    `("offset?"    ,mimsql:offset?)
+    `("having?"    ,mimsql:having?)
+    `("sub?"       ,mimsql:sub?))
 
   (loads "mimir/priv/mimsql-internal")
 
@@ -32,9 +39,53 @@
       (else ($ (++ "=" (stringify %)))))))
 
 
-  (select (lambda (names from . clauses)
-    (let ((names (if (list? names) names (list names))))
-      (mimsql:make-select (map stringify names) (stringify from) clauses))))
+  (entity (lambda (name . clauses)
+    (let ((fields    (filter mimsql:fields? clauses))
+          (relations (filter mimsql:relation? clauses))
+          (invalid   (filter ($ (not (or (mimsql:relation? %)
+                                         (mimsql:fields? %))))
+                             clauses)))
+      (cond
+        ((not (eq? (length fields) 1))
+          (error:from-string "need exactly one field clause for entity, got"
+                             (->string (length fields))))
+        ((not (null? invalid))
+          (error:from-string "entity got unexpected arguments"
+                             (->string invalid)))
+        (else
+          (mimsql:make-entity (stringify name) (car fields) relations))))))
+
+  (fields (lambda names
+    (mimsql:make-fields (map stringify names))))
+
+  (has-one (lambda (entity)
+    (mimsql:make-relation :one entity)))
+
+  (has-many (lambda (entity)
+    (mimsql:make-relation :many entity)))
+
+  (belongs-to (lambda (entity)
+    (mimsql:make-relation :belongs entity)))
+
+  (select (lambda (from . clauses)
+    (let ((from  (if (mimsql:entity? from) (mimsql:entity-name from)
+                                           (stringify from)))
+          (names (let ((searched (filter list? clauses)))
+                    (cond
+                      ((and (null? searched) (mimsql:entity? from))
+                        (mimsql:get-fields (mimsql:entity-fields from)))
+                      ((null? searched) ["*"])
+                      (else (car searched)))))
+          (clauses (filter ($ (not (list? %))) clauses)))
+      (mimsql:make-select names from clauses))))
+
+  (with (lambda (entity . join-value)
+    (mimsql:make-join (mimsql:entity-name entity)
+                      (if (null? join-value) "id" (car join-value)))))
+
+  (join (lambda (name . join-value)
+    (mimsql:make-join (stringify name)
+                      (if (null? join-value) "id" (car join-value)))))
 
   (where (lambda constraints
     (let ((treated (|> constraints
