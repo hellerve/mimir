@@ -3,9 +3,10 @@
 A zepto native extension.
 
 Mímir is one of the nordic Gods of knowledge. This library aims
-to be a database wrapper. It currently only works with PostgreSQL
-and it is not even done. Nonetheless, I release it to the world
-right now as a RFC.
+to be a database wrapper that brings its own little DSL. It
+currently only works with PostgreSQL, MySQL, and Sqlite and it
+is not done yet. Nonetheless, I release it to the world right
+now as a RFC.
 
 ## Installation
 
@@ -81,6 +82,10 @@ bother with that any more.
   (lambda (conn)
     (write (mimir:execute conn "select * from my-table"))))
 ```
+
+### The DSL
+
+I should document it.
 
 <hr/>
 Have fun!
