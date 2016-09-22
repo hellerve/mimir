@@ -122,7 +122,7 @@
                         (if (null? method)
                           ""
                           (++ " "
-                              (|> method car stringify string:uppercase))))))
+                              (|> method car stringify string:upper-case))))))
 
   (having (lambda constraints
     (let ((treated (|> constraints
