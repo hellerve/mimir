@@ -42,6 +42,27 @@
 
 
   (entity (lambda (name . clauses)
+    "creates an entity <par>name</par> with the clauses <par>clauses</par>.
+     The clauses can be relationships or the fields, in any order. One and
+     only one fields instance is required.
+
+     Example:
+     <zepto>
+      (define user
+        (mimsql:entity :user
+          (mimsql:fields :id :firstname :lastname :username :password)))
+
+      (define group
+        (mimsql:entity :group
+          (mimsql:fields :id :name)
+          (mimsql:has-many user)))
+     </zepto>
+
+     params:
+      - name: the entity name
+      - clauses: the clauses that this entity should adhere to (vararg)
+     complexity: O(n)
+     returns: a mimsql:entity type"
     (let ((fields    (filter mimsql:fields? clauses))
           (relations (filter mimsql:relation? clauses))
           (invalid   (filter ($ (not (or (mimsql:relation? %)
@@ -58,32 +79,103 @@
           (mimsql:make-entity (stringify name) (car fields) relations))))))
 
   (fields (lambda names
+    "creates fields from <par>names</par>.
+
+     params:
+      - names: vararg of field names
+     complexity: O(n)
+     returns: a mimsql:fields type"
     (mimsql:make-fields (map stringify names))))
 
   (has-one (lambda (entity)
+    "creates a one-to-one relationship to <par>entity</par>.
+
+     params:
+      - entity: the entity to which a relationship should link
+     complexity: O(1)
+     returns: a mimsql:relation type"
     (mimsql:make-relation :one entity)))
 
   (has-many (lambda (entity)
+    "creates a one-to-many relationship to <par>entity</par>.
+
+     params:
+      - entity: the entity to which a relationship should link
+     complexity: O(1)
+     returns: a mimsql:relation type"
     (mimsql:make-relation :many entity)))
 
   (belongs-to (lambda (entity)
+    "creates a many-to-one relationship to <par>entity</par>.
+
+     params:
+      - entity: the entity to which a relationship should link
+     complexity: O(1)
+     returns: a mimsql:relation type"
     (mimsql:make-relation :belongs entity)))
 
   (save (lambda (entity values)
-    (let ((keys   (map stringify (hash:keys values)))
-          (fields (mimsql:get-fields (mimsql:entity-fields entity))))
-      (if (and (eq? (length keys) (length fields))
-               (all? (curry in? keys) fields))
-        (mimsql:make-save entity
-                          (make-hash
-                            (hash:kv-reduce
-                              (lambda (acc x) (+= acc (map stringify x)))
-                              []
-                              values)))
-        (error:from-string "entity:save expected keys" (->string fields)
-                           "\b, but got" (->string keys))))))
+    "creates an entity:save type for <par>entity</par> from the
+     values <par>values</par>.
+
+     Example:
+     <zepto>
+      (define user (mimsql:entity (mimsql:fields :id :username)))
+
+      (mimsql:save user #{:id 1 :username \"koala\"})
+      (mimsql:save user [#{:id 2 :username \"turtle\"}
+                         #{:id 3 :username \"crayfish\"}])
+     </zepto>
+
+     params:
+      - entity: the entity for which to create an insertion
+      - values: the values to insert as a dict (or a list of dicts)
+     complexity: O(n)
+     returns: a mimsql:save type"
+    (if (list? values)
+      (map (curry save entity) values)
+      (let ((keys   (map stringify (hash:keys values)))
+            (fields (mimsql:get-fields (mimsql:entity-fields entity))))
+        (if (and (eq? (length keys) (length fields))
+                 (all? (curry in? keys) fields))
+          (mimsql:make-save entity
+                            (make-hash
+                              (hash:kv-reduce
+                                (lambda (acc x) (+= acc (map stringify x)))
+                                []
+                                values)))
+          (error:from-string "entity:save expected keys" (->string fields)
+                             "\b, but got" (->string keys)))))))
 
   (select (lambda (from . clauses)
+    "creates a mimsql:select type for the table <par>from</par>
+     with the constraints <par>clauses</par>. <par>from</par> can
+     be either an atom or a mimsql:entity type. Behaviour changes
+     determined by the values passed in.
+
+     Example:
+     <zepto>
+       ; SELECT username, password FROM user;
+       (mimsql:select :user [:username, :password])
+
+       ; SELECT * FROM user;
+       (mimsql:select :user)
+
+       (define user (mimsql:entity :user (mimsql:fields :name :username :password)))
+       ; SELECT name, username, password FROM user;
+       (mimsql:select user)
+
+       ; SELECT * FROM user WHERE id > 10 AND superuser=true LIMIT 1;
+       (mimsql:select :user (mimsql:where :id [> 10]
+                                          :superuser true)
+                            (mimsql:limit 1))
+     </zepto>
+
+     params:
+        - from: the table name or entity
+        - clauses: the constraints that the query should respect
+     complexity: O(n)
+     returns: a mimsql:select type"
     (let ((from  (if (mimsql:entity? from) (mimsql:entity-name from)
                                            (stringify from)))
           (names (let ((searched (filter list? clauses)))
@@ -96,14 +188,50 @@
       (mimsql:make-select names from clauses))))
 
   (with (lambda (entity . join-value)
+    "creates a mimsql:with type for <par>entity</par> with the
+     optional value to join on <par>join-value</par>. It should
+     be passed into <fun>mimsql:select</fun> to join according to
+     the entites' relation. <par>join-value</par> can be either
+     a string (if the names of the column are the same in both
+     tables) or a pair if they are different.
+
+     params:
+      - entity: the entity to inline
+      - join-value: the column to join on (optional)
+     complexity: O(1)
+     returns: a mimsql:with type"
     (mimsql:make-join (mimsql:entity-name entity)
                       (if (null? join-value) "id" (car join-value)))))
 
   (join (lambda (name . join-value)
+    "like <fun>mimsql:with</fun>, but takes a raw table name.
+
+     params:
+      - name: the table to join in
+      - join-value: the column to join on (optional)
+     complexity: O(1)
+     returns: a mimsql:with type"
     (mimsql:make-join (stringify name)
                       (if (null? join-value) "id" (car join-value)))))
 
   (where (lambda constraints
+    "creates a mimsql:where type using <par>constraints</par>.
+     The constraints are name-value pairs or name-constraint pairs
+     where the constraint is an operator and a value.
+
+     Example:
+     <zepto>
+        ; WHERE id=10
+        (mimsql:where :id 10)
+        ; WHERE name like \"usr\" AND id > 10
+        (mimsql:where :name [like \"usr\"]
+                      :id   [> 10])
+     </zepto>
+
+     params:
+      - constraints: the constraints the clause should adhere to (vararg)
+     complexity: O(2*n)
+     returns: a mimsql:where type"
     (let ((treated (|> constraints
                        make-hash
                        (curry hash:kv-map ($ `(,(stringify (car %))
@@ -112,12 +240,36 @@
       (mimsql:make-where treated))))
 
   (limit (lambda (n)
+    "creates a mimsql:limit type using <par>n</par> as the limit.
+     <par>n</par> must be a number. This clause can then be passed
+     into the select.
+
+     params:
+      - n: the limit
+     complexity: O(1)
+     returns: a mimsql:limit type"
     (mimsql:make-limit n)))
 
   (offset (lambda (n)
+    "creates a mimsql:offset type using <par>n</par> as the offset.
+     <par>n</par> must be a number. This clause can then be passed
+     into the select.
+
+     params:
+      - n: the offset
+     complexity: O(1)
+     returns: a mimsql:offset type"
     (mimsql:make-offset n)))
 
   (order (lambda (name . method)
+    "create a mimsql:order type by column <par>name</par>. Optionally
+     specify a <par>method</par>, e.g. \"DESC\".
+
+     params:
+      - name: the column name to order by
+      - method: the optional order method
+     complexity: O(n) where n is the length of the method string
+     returns: a mimsql:order type"
     (mimsql:make-order (stringify name)
                         (if (null? method)
                           ""
@@ -125,6 +277,20 @@
                               (|> method car stringify string:upper-case))))))
 
   (having (lambda constraints
+    "create a mimsql:having type using <par>constaints</par>.
+     Similar to <fun>mimsql:where</fun>, except that it takes a function,
+     a name and a constraint.
+
+     Example:
+     <zepto>
+       ; HAVING count(followers) > 10 and count(followers) < 100
+       (mimsql:having :count :followers [> 10] :count :followers [< 100])
+     </zepto>
+
+     params:
+      - constraints: the constraints the clause should adhere to (vararg)
+     complexity: O(2*n)
+     returns: a mimsql:having type"
     (let ((treated (|> constraints
                        (curry partition-all 4)
                        (curry map ($ (++ (stringify (car %))
@@ -133,4 +299,17 @@
       (mimsql:make-having treated))))
 
   (sub (lambda (operator query)
+    "create a mimsql:sub type using an operator and a query.
+
+     Example:
+     <zepto>
+       ; WHERE username in (SELECT username from superuser)
+       (mimsql:where :username (mimsql:sub :in (mimsql:select :superuser :username)))
+     </zepto>
+
+     params:
+      - operator: the operator to check (such as :like, :in, etc.)
+      - query: the subquery to perform
+     complexity: O(1)
+     returns: a mimsql:sub type"
     (mimsql:make-sub (stringify operator) query))))
