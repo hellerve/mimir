@@ -121,8 +121,8 @@ First, we might want to define the entites we use.
     (s:has-many user)))
 ```
 
-Once we defined the entites and their relationships (`has-many`, `has-one` and
-`belongs-to` are currently supported), we can query them. All of the functions
+Once we have defined the entites and their relationships (`has-many`, `has-one`,
+and `belongs-to` are currently supported), we can query them. All of the functions
 emit mimsql types that implement the stringify protocol. Stringification turns
 them into SQL queries.
 
