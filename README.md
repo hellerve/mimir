@@ -1,12 +1,19 @@
 # mimir
 
-A zepto native extension.
+Many a foe of the Allfather fell prey to he cunning wisdom of Mímir.
+<br/>
+The One-eyed One himself sacrificed his body to the will of
+the All-Knowing,<br/>for wisdom is greater than what is carnal.
 
-Mímir is one of the nordic Gods of knowledge. This library aims
-to be a database wrapper that brings its own little DSL. It
-currently only works with PostgreSQL, MySQL, and Sqlite and it
-is not done yet. Nonetheless, I release it to the world right
-now as a RFC.
+And so we submit to the Great and Powerful in the pursuit of that
+which is true.
+
+## (mimir:connect zepto databases)
+
+This library aims to be a database wrapper that brings its own
+little DSL. It currently only works with PostgreSQL, MySQL, and
+Sqlite and it is not done yet. Nonetheless, I release it to the
+world right now as a RFC.
 
 ## Installation
 
