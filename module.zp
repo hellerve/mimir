@@ -1,5 +1,6 @@
 #{:name "mimir"
-  :version "0.1.1"
+  :description "Mímir is a God of wisdom. It is also a database library."
+  :version "0.1.2"
   :license "GPLv2"
   :type :native
   :tests ()
