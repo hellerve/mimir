@@ -1,2 +1,2 @@
-(load "mimir/MimirInternal")
-(load "mimir/datatype")
+(load "mimir/priv/MimirInternal")
+(load "mimir/priv/datatype")

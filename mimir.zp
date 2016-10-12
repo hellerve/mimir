@@ -12,7 +12,7 @@
     `("connection-info" ,mimir:connection-info)
     `("with-connection" ,with-connection))
 
-  (loads "mimir/internal")
+  (loads "mimir/priv/internal")
 
   (execute-mimsql (lambda (conn query . values)
     "executes a query built with mimsql. Otherwise functionally equivalent
