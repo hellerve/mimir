@@ -229,7 +229,7 @@ describeTableFun [_, x] =
 
 executeDoc :: [String]
 executeDoc = ["execute a statement <par>stmt</par> (string). Takes a connection,",
-              "a statement and an optional list of values <par>args/par> that should be",
+              "a statement and an optional list of values <par>args</par> that should be",
               "interpolated into the statement.",
               "",
               "Auto-commits.",

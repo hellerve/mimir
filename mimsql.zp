@@ -51,7 +51,6 @@
       (define user
         (mimsql:entity :user
           (mimsql:fields :id :firstname :lastname :username :password)))
-
       (define group
         (mimsql:entity :group
           (mimsql:fields :id :name)
@@ -121,7 +120,6 @@
      Example:
      <zepto>
       (define user (mimsql:entity (mimsql:fields :id :username)))
-
       (mimsql:save user #{:id 1 :username \"koala\"})
       (mimsql:save user [#{:id 2 :username \"turtle\"}
                          #{:id 3 :username \"crayfish\"}])
@@ -157,14 +155,11 @@
      <zepto>
        ; SELECT username, password FROM user;
        (mimsql:select :user [:username, :password])
-
        ; SELECT * FROM user;
        (mimsql:select :user)
-
        (define user (mimsql:entity :user (mimsql:fields :name :username :password)))
        ; SELECT name, username, password FROM user;
        (mimsql:select user)
-
        ; SELECT * FROM user WHERE id > 10 AND superuser=true LIMIT 1;
        (mimsql:select :user (mimsql:where :id [> 10]
                                           :superuser true)
