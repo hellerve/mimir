@@ -1,2 +1,2 @@
-(load "mimir/priv/mimsql-types.zp")
-(load "mimir/priv/mimsql-stringify.zp")
+(load "mimir/priv/mimsql-types.zp" (current-env))
+(load "mimir/priv/mimsql-stringify.zp" (current-env))
